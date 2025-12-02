@@ -1,42 +1,22 @@
-# Training controls for gps study
+# Training controls for passive study
 
 # NOTES------------------------------
 
-# v2: update context feature `type` with more information for values labeled other, expand mtry hyperparameter range downwards to include 10 and 15
-# v3: remove pratesum features due to high missingness
-# v4: add in preliminary context features (location variance, time in transit, time spent out of the house in the evening)
-# v5: recalculate preliminary context features (location variance, time in transit, time spent out of the house in the evening)
+# v1 - first pass for Chris' capstone
 
-# Batches done:
-# xgboost all context features (v1)
-# glmnet all context features (v1)
-# xgboost all context features (v2)
-# xgboost raw and diff context features (v3)
-# xgboost movement + context features, raw and diff (v4)
-# xgboost recalculate movement and context features, raw and diff (v5)
-# xgboost same v5 features but with hour roll (v6)
-# xgboost same v5 features but with hour roll (v7) -- thought I made filtering changes here but accidentally did not
-# v8 testing different stratifications with kfold, same v6 features
-# xgboost movement, context, weather raw and diff, hour roll, with filtering updates and corrected some type features (v9)
-# glmnet with lh strat, movement and context and weather features, hour roll (v10)
-
-
-# Currently running:
-# xgboost with lh strat, movement and context and weather and circadian features, hour roll (v11)
 
 # source format_path
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
-study <- "gps"
+study <- "passive"
 window <- "day"
 lead <- 0
-version <- "v11" 
+version <- "v1" 
 algorithm <- "xgboost"
-model <- "mod_comparison"
 
-feature_set <- c("baseline", "all") # GPS feature set name
-data_trn <- str_c("features_combined.csv")
+feature_set <- c("act", "pass", "all") # feature set name
+data_trn <- str_c("features_", version, ".csv")
 
 seed_splits <- 102030
 
@@ -52,7 +32,7 @@ resample <- c("none", "up_1", "up_2", "up_3", "up_4", "up_5",
               "down_1", "down_2", "down_3", "down_4", "down_5")
 
 # CHTC SPECIFIC CONTROLS------ ---------------------
-username <- "punturieri" # for setting staging directory (until we have group staging folder)
+username <- "jjcurtin" # for setting staging directory (until we have group staging folder)
 stage_data <- FALSE # If FALSE .sif will still be staged, just not data_trn
 max_idle <- 1000
 request_cpus <- 1 
@@ -70,12 +50,11 @@ y_level_neg <- "no lapse"
 
 # CV SETTINGS---------------------------------
 cv_resample_type <- "kfold" # can be boot, kfold, or nested
-cv_resample = "5_x_5" # can be repeats_x_folds (e.g., 1_x_10, 10_x_10) or number of bootstraps (e.g., 100)
+cv_resample = "6_x_5" # can be repeats_x_folds (e.g., 1_x_10, 10_x_10) or number of bootstraps (e.g., 100)
 cv_inner_resample <- NULL # can also be a single number for bootstrapping (i.e., 100)
 cv_outer_resample <- NULL # outer resample will always be kfold
 cv_group <- "subid" # set to NULL if not grouping
 cv_strat <- TRUE # whether or not you have a stratifying variable
-
 
 cv_name <- if_else(cv_resample_type == "nested",
                    str_c(cv_resample_type, "_", cv_inner_resample, "_",
@@ -84,11 +63,11 @@ cv_name <- if_else(cv_resample_type == "nested",
 
 # STUDY PATHS----------------------------
 # the name of the batch of jobs to set folder name
-name_batch <- str_c("train_", algorithm, "_", cv_name, "_", version, "_", model) 
+name_batch <- str_c("train_", algorithm, "_", cv_name, "_", version) 
 # the path to the batch of jobs to put the folder name
 path_batch <- format_path(str_c("risk/chtc/", study, "/", name_batch)) 
 # location of data set
-path_data <- format_path(str_c("risk/data_processed/gps")) 
+path_data <- format_path(str_c("risk/data_processed/", study))
 
 # ALGORITHM-SPECIFIC HYPERPARAMETERS-----------
 hp1_glmnet <- c(0.05, seq(.1, 1, length.out = 10)) # alpha (mixture)
@@ -126,7 +105,6 @@ format_data <- function(df, lapse_strat = NULL){
       mutate(y = factor(y, levels = c(!!y_level_pos, !!y_level_neg)), 
              across(where(is.character), factor)) |>
       select(-c(dttm_label))
-  
 }
 
 
@@ -157,16 +135,20 @@ build_recipe <- function(d, config) {
   }
 
   # no need for selection for "all" feature set 
-  if(feature_set == "baseline") {
+  if(feature_set == "pass") {
     rec <- rec |> 
-      step_rm(contains("recent_cm")) 
+      step_rm(contains("act_")) 
   }
+  if(feature_set == "act") {
+    rec <- rec |> 
+      step_rm(contains("pass_")) 
+  }
+  
   
   rec <- rec |>
     step_zv(all_predictors()) |> 
     step_impute_median(all_numeric_predictors()) |> 
     step_impute_mode(all_nominal_predictors()) 
-  
  
    
   # resampling options for unbalanced outcome variable
