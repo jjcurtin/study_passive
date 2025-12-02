@@ -28,17 +28,15 @@ source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("modeling/rename_feats.R")
 path_shared <- format_path("risk/data_processed/shared")
-path_features <- format_path("optimize/data_processed/features")
+path_passive <- format_path("risk/data_processed/passive")
 ```
 
 Read in feature files
 ```{r}
-ema <- read_csv(here::here(path_shared, "features_ema_1x_day_1h.csv"), 
-                show_col_types = FALSE) 
 gps <- read_csv(here::here(path_shared, "features_gps_day_1h.csv"), 
                  show_col_types = FALSE) 
-# demos <- read_csv(here::here(path_shared, "features_demographics.csv"), 
-#                   show_col_types = FALSE) 
+demos <- read_csv(here::here(path_shared, "features_demographics.csv"), 
+                  show_col_types = FALSE) 
 # monthly <- read_csv(here::here(path_shared, "features_monthly_day_1h.csv"), 
 #                     show_col_types = FALSE) 
 strat <- read_csv(here::here(path_shared, "strat_lh.csv"), 
@@ -49,24 +47,21 @@ Check rows
 
 - OK
 ```{r}
-nrow(ema)
 nrow(gps)
 # nrow(monthly)
-# nrow(demos)
+nrow(demos)
 nrow(strat)
 ```
 
 Verify expected # of subids
 
-- EMA sample (151) for EMA, Monthly, and Strat
 - GPS sample (154) for GPS
 - Full sample (154) for demos
 
 ```{r}
-ema |> distinct(subid) |> nrow() 
 gps |> distinct(subid) |> nrow() 
 # monthly |> distinct(subid) |> nrow() 
-# demos |> distinct(subid) |> nrow() 
+demos |> distinct(subid) |> nrow() 
 strat |> distinct(subid) |> nrow() 
 ```
 
