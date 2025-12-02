@@ -68,14 +68,22 @@ demos |> distinct(subid) |> nrow()
 strat |> distinct(subid) |> nrow() 
 ```
 
-Had previously removed var_location as well but keeping now
+Only keeping truly active and passive features
+also getting rid of other features (e.g. no) that arent useful
 ```{r}
 gps <- gps |> 
-  # select(-label_num) |> 
-  # select(-contains("var_location"))  |> 
+  select(-contains("var_location"))  |> 
   select(-contains(".no")) |> 
   select(-contains("neutral")) |> 
-  select(-contains("transit"))
+  select(-contains("transit")) |> 
+  select(-contains("evening_out"))
+```
+
+Clean feature names
+```{r}
+gps <- gps |> 
+  rename_gps_features_stage1() |> 
+  reorder_feature_names()
 ```
 
 Remove diff features from monthly
@@ -86,11 +94,8 @@ Remove diff features from monthly
 
 Look at features for each signal
 
-- GPS looks good
-- Monthly features
 ```{r}
 names(gps)
-# names(monthly) 
 names(demos)
 names(strat)
 ```
@@ -112,8 +117,6 @@ nrow(all)
 
 all <- left_join(all, strat, by = c("subid"))
 nrow(all)
-
-names(all)
 ```
 
 
