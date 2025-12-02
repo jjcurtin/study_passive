@@ -15,6 +15,9 @@ params:
 
 ## Status and Notes
 
+Consider rename of features for active
+consider rename of features for clearer names
+consider source of feat_names from optimze
 
 ## Set up
 
@@ -26,7 +29,7 @@ library(tidyverse)
 
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
-source("modeling/rename_feats.R")
+source("~/github/proj_risk/shared/fun_rename.R")
 path_shared <- format_path("risk/data_processed/shared")
 path_passive <- format_path("risk/data_processed/passive")
 ```
@@ -55,8 +58,8 @@ nrow(strat)
 
 Verify expected # of subids
 
-- GPS sample (154) for GPS
-- Full sample (154) for demos
+- GPS sample  for GPS
+- Full sample for demos
 
 ```{r}
 gps |> distinct(subid) |> nrow() 
@@ -65,7 +68,6 @@ demos |> distinct(subid) |> nrow()
 strat |> distinct(subid) |> nrow() 
 ```
 
-Remove `label_num` and possibly other features from gps 
 Had previously removed var_location as well but keeping now
 ```{r}
 gps <- gps |> 
@@ -76,29 +78,20 @@ gps <- gps |>
   select(-contains("transit"))
 ```
 
-Remove min features from EMA
-```{r}
-ema <- ema |> 
-  select(-contains("min"))
-```
-
 Remove diff features from monthly
 ```{r}
 # monthly <- monthly |> 
 #   select(-contains("drecent"))
 ```
 
-
 Look at features for each signal
 
-- EMA looks good 
 - GPS looks good
 - Monthly features
 ```{r}
-names(ema)
 names(gps)
 # names(monthly) 
-# names(demos)
+names(demos)
 names(strat)
 ```
 
@@ -114,20 +107,11 @@ Only needed for 24 hour rolls
 Join all files using left joins starting with GPS for that sample
 Also join in strat lh
 ```{r}
-all <- left_join(gps, ema, by = c("subid", "dttm_label", "lapse"))
+all <- left_join(gps, demos, by = c("subid"))
 nrow(all)
-
-# all <- left_join(all, monthly, by = c("subid", "dttm_label", "lapse"))
-# nrow(all)
-
-#all <- left_join(all, demos, by = c("subid"))
-#nrow(all)
 
 all <- left_join(all, strat, by = c("subid"))
 nrow(all)
-
-all <- all |> 
-  rename_features_stage1()
 
 names(all)
 ```
@@ -140,7 +124,7 @@ all |> tab(lapse)
 
 Write out file
 ```{r}
-all |> write_csv(here::here(path_features, 
+all |> write_csv(here::here(path_passive, 
                             str_c("features_", 
                                   params$version, ".csv")))
 ```
