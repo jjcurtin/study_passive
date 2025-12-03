@@ -83,7 +83,7 @@ Clean feature names
 ```{r}
 gps <- gps |> 
   rename_gps_features_stage1() |> 
-  reorder_feature_names()
+  reorder_feature_names(type = "gps")
 ```
 
 Remove diff features from monthly
