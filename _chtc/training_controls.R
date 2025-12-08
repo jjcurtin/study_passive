@@ -2,6 +2,7 @@
 
 # NOTES------------------------------
 
+# v2 - second set for capstone 
 # v1 - first pass for Chris' capstone
 
 
@@ -12,7 +13,7 @@ source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true
 study <- "passive"
 window <- "day"
 lead <- 0
-version <- "v1" 
+version <- "v2" 
 algorithm <- "xgboost"
 
 feature_set <- c("act", "pass", "all") # feature set name

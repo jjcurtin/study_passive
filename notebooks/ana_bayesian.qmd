@@ -1,0 +1,127 @@
+---
+title: "Model evaluation"
+author: "Kendra Wyant"
+date: "`r lubridate::today()`"
+output: 
+  html_document:
+    toc: true 
+    toc_depth: 4
+format:
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+params:
+  version: "v2"
+---
+
+### Set Up Environment
+
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true"))
+suppressPackageStartupMessages(library(tidyposterior))
+
+path_models <- format_path(str_c("risk/models/passive"))
+path_shared <- format_path("risk/data_processed/shared")
+path_processed <- format_path("risk/data_processed")
+path_input <- format_path(str_c("risk/chtc/passive/train_xgboost_kfold_6_x_5_", 
+                                 params$version, "/output"))
+
+options(knitr.kable.NA = '')
+```
+
+
+```{r}
+
+folds <- read_csv(here::here(path_input, str_c("batch_results_", params$version, ".csv")), 
+              show_col_types = FALSE) |> glimpse()
+  
+auroc_avg <- read_csv(here::here(path_models, 
+                                      str_c("auroc_", params$version, ".csv")), 
+                              col_types = cols()) 
+auroc_best <- auroc_avg |>
+  group_by(feature_set) |> 
+  arrange(desc(auroc)) |>
+  slice(1) |> 
+  print()
+
+act <- folds |> 
+  filter(feature_set == "act",
+         hp1 == auroc_best |> filter(feature_set == "act") |> pull(hp1),
+         hp2 == auroc_best |> filter(feature_set == "act") |> pull(hp2),
+         hp3 == auroc_best |> filter(feature_set == "act") |> pull(hp3),
+         resample == auroc_best |> filter(feature_set == "act") |> pull(resample)) |> 
+  select(split_num, act = roc_auc) |> 
+  arrange(split_num)
+
+pass <- folds |> 
+  filter(feature_set == "pass",
+         hp1 == auroc_best |> filter(feature_set == "pass") |> pull(hp1),
+         hp2 == auroc_best |> filter(feature_set == "pass") |> pull(hp2),
+         hp3 == auroc_best |> filter(feature_set == "pass") |> pull(hp3),
+         resample == auroc_best |> filter(feature_set == "pass") |> pull(resample)) |> 
+  select(split_num, pass = roc_auc) |> 
+  arrange(split_num)
+
+all <- folds |> 
+  filter(feature_set == "all",
+         hp1 == auroc_best |> filter(feature_set == "all") |> pull(hp1),
+         hp2 == auroc_best |> filter(feature_set == "all") |> pull(hp2),
+         hp3 == auroc_best |> filter(feature_set == "all") |> pull(hp3),
+         resample == auroc_best |> filter(feature_set == "all") |> pull(resample)) |> 
+  select(split_num, all = roc_auc) |> 
+  arrange(split_num) 
+```
+
+
+#### Model comparison: pass vs. all 
+
+```{r}
+
+set.seed(101)
+pp <- pass |> 
+  left_join(all, by = "split_num") |>
+  left_join(act, by = "split_num") |>
+  rename(id = split_num) |> 
+  perf_mod(formula = statistic ~ model + (1 | id),
+         transform = tidyposterior::logit_trans,  # for skewed & bounded AUC
+         iter = 2000, chains = 4, adapt_delta = .9, # increased iteration from 2000 to fix divergence issues
+         family = gaussian, 
+)  
+
+pp_tidy <- pp |> 
+  tidy(seed = 123) 
+
+q = c(.025, .5, .975)
+pp_perf_tibble <- pp_tidy |> 
+  group_by(model) |> 
+  summarize(pp_median = quantile(posterior, probs = q[2]),
+            pp_lower = quantile(posterior, probs = q[1]), 
+            pp_upper = quantile(posterior, probs = q[3])) |> 
+  arrange(model)
+
+pp_perf_tibble |> print()
+# pp_perf_tibble |> 
+#   write_csv(here::here(path_models_lag, "pp_perf_tibble.csv"))
+# 
+# pp_tidy |> 
+#   write_csv(here::here(path_models_lag, "posteriors.csv"))
+# 
+# pp_perf_tibble
+```
+
+
+```{r}
+contrasts <- pp |>
+  contrast_models(list("all", "all"), 
+                  list("pass", "act")) |> 
+  summary(size = 0) |> view() 
+  mutate(contrast = factor(contrast, 
+                           levels = c("lag24 vs lag0", "lag72 vs lag0", "lag168 vs lag0", 
+                                      "lag336 vs lag0"),
+                           labels = c("24 vs. 0", "72 vs. 0", 
+                                      "168 vs. 0", "336 vs. 0")),
+         probability = 1 - probability)
+
+```

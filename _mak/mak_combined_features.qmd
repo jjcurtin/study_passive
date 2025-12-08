@@ -10,7 +10,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v1"
+  version: "v2"
 ---
 
 ## Status and Notes
