@@ -3,3 +3,5 @@
 .RData
 .Ruserdata
 study_passive.Rproj
+
+.DS_Store
