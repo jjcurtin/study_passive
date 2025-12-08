@@ -1,0 +1,66 @@
+---
+title: "Model Comparisons Table"
+author: "Kendra Wyant"
+date: "`r lubridate::today()`"
+number-sections: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 4
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 4
+editor_options:
+  chunk_output_type: console
+html-table-processing: none
+---
+
+```{r}
+#| message: false
+#| warning: false
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true"))
+library(kableExtra)
+
+path_models_passive <- format_path(str_c("risk/models/passive"))
+path_shared <- format_path("risk/data_processed/shared")
+path_processed <- format_path("risk/data_processed/passive")
+
+options(knitr.kable.NA = '')
+```
+
+
+
+## Data and calculations
+
+Table: Model Comparisons
+```{r}
+contrasts <- read_csv(here::here(path_models_passive, "contrasts.csv"),
+                      col_types = cols())
+
+table_ci <- contrasts |>
+  mutate(ci = str_c("[", round(lower, 3), ", ", round(upper, 3), "]"),
+         mean_val = as.character(round(mean, 3)),
+         prob_val = as.character(round(probability, 3))) |>
+  select(contrast, mean_val, ci, prob_val) |>
+  rename(Contrast = contrast,
+         Mean = mean_val,
+         `Bayesian CI` = ci,
+         Probability = prob_val)
+```
+
+
+
+### Table: Model Comparisons
+
+```{r }
+#| label: tbl-model
+
+table_ci |>
+  knitr::kable() |>
+  kable_classic() |>
+  kableExtra::column_spec(1, width = "25em")
+```

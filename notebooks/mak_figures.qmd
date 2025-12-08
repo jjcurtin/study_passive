@@ -1,0 +1,72 @@
+---
+title: "Posterior Probability Figure"
+author: "Kendra Wyant"
+date: "`r lubridate::today()`"
+number-sections: true
+output:
+  html_document:
+    toc: true
+    toc_depth: 4
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 4
+editor_options:
+  chunk_output_type: console
+execute:
+  echo: false
+html-table-processing: none
+---
+
+```{r}
+#| message: false
+#| warning: false
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true"))
+
+theme_set(theme_classic())
+
+path_models_passive <- format_path(str_c("risk/models/passive"))
+path_shared <- format_path("risk/data_processed/shared")
+path_processed <- format_path("risk/data_processed/passive")
+```
+
+Data for figures
+```{r}
+pp_tidy <- read_csv(here::here(path_models_passive, "posteriors.csv"),
+                                 show_col_types = FALSE)
+
+ci <- read_csv(here::here(path_models_passive, "pp_perf_tibble.csv"),
+                                 show_col_types = FALSE) |>
+  mutate(model = factor(model, levels = c("act", "pass", "all"),
+                        labels = c("Active Context", "Passive Context", "Both")))
+```
+
+
+
+## Figure: Posterior probabilities for auROC by model 
+
+```{r}
+#| label: fig-pp
+#| fig-width: 6
+#| fig-height: 5
+
+pp_tidy |>
+  mutate(model = factor(model, levels = c("act", "pass", "all"),
+                        labels = c("Active Context", "Passive Context", "Both"))) |>
+  ggplot() +
+  geom_histogram(aes(x = posterior), fill = "light grey", color = "black", linewidth = .5,
+                 bins = 60) +
+  geom_segment(mapping = aes(y = 11700, yend = 12900, x = pp_median, xend = pp_median),
+               linewidth = .5, data = ci) +
+  geom_segment(mapping = aes(y = 12300, yend = 12300, x = pp_lower, xend = pp_upper),
+                linewidth = .5, data = ci) +
+  facet_wrap(~model, ncol = 1) +
+  geom_vline(xintercept = .5, linewidth = .5, linetype = "dashed") +
+  scale_y_continuous("Posterior Samples") +
+  xlab("Area Under ROC Curve") +
+  expand_limits(x = c(.5, 1)) +
+  theme_classic()
+```

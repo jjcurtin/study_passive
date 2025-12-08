@@ -21,11 +21,12 @@ params:
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true"))
 suppressPackageStartupMessages(library(tidyposterior))
+suppressPackageStartupMessages(library(kableExtra))
 
-path_models <- format_path(str_c("risk/models/passive"))
+path_models_passive <- format_path(str_c("risk/models/passive"))
 path_shared <- format_path("risk/data_processed/shared")
 path_processed <- format_path("risk/data_processed")
-path_input <- format_path(str_c("risk/chtc/passive/train_xgboost_kfold_6_x_5_", 
+path_input <- format_path(str_c("risk/chtc/passive/train_xgboost_kfold_6_x_5_",
                                  params$version, "/output"))
 
 options(knitr.kable.NA = '')
@@ -34,10 +35,10 @@ options(knitr.kable.NA = '')
 
 ```{r}
 
-folds <- read_csv(here::here(path_input, str_c("batch_results_", params$version, ".csv")), 
+folds <- read_csv(here::here(path_input, str_c("batch_results_", params$version, ".csv")),
               show_col_types = FALSE) |> glimpse()
-  
-auroc_avg <- read_csv(here::here(path_models, 
+
+auroc_avg <- read_csv(here::here(path_models_passive, 
                                       str_c("auroc_", params$version, ".csv")), 
                               col_types = cols()) 
 auroc_best <- auroc_avg |>
@@ -86,7 +87,7 @@ pp <- pass |>
   rename(id = split_num) |> 
   perf_mod(formula = statistic ~ model + (1 | id),
          transform = tidyposterior::logit_trans,  # for skewed & bounded AUC
-         iter = 2000, chains = 4, adapt_delta = .9, # increased iteration from 2000 to fix divergence issues
+         iter = 6000, chains = 4, adapt_delta = .9, # increased iteration from 2000 to fix divergence issues
          family = gaussian, 
 )  
 
@@ -102,26 +103,30 @@ pp_perf_tibble <- pp_tidy |>
   arrange(model)
 
 pp_perf_tibble |> print()
-# pp_perf_tibble |> 
-#   write_csv(here::here(path_models_lag, "pp_perf_tibble.csv"))
-# 
-# pp_tidy |> 
-#   write_csv(here::here(path_models_lag, "posteriors.csv"))
-# 
-# pp_perf_tibble
 ```
 
 
 ```{r}
 contrasts <- pp |>
-  contrast_models(list("all", "all"), 
-                  list("pass", "act")) |> 
-  summary(size = 0) |> view() 
-  mutate(contrast = factor(contrast, 
-                           levels = c("lag24 vs lag0", "lag72 vs lag0", "lag168 vs lag0", 
-                                      "lag336 vs lag0"),
-                           labels = c("24 vs. 0", "72 vs. 0", 
-                                      "168 vs. 0", "336 vs. 0")),
-         probability = 1 - probability)
+  contrast_models(list("all", "all"),
+                  list("pass", "act")) |>
+  summary(size = 0) |>
+  mutate(contrast = factor(contrast,
+                           levels = c("all vs pass", "all vs act"),
+                           labels = c("Both vs. Passive Context", "Both vs. Active Context")))
 
+contrasts
+```
+
+
+```{r}
+# save data for use in mak_figures and mak_tables
+pp_tidy |>
+  write_csv(here::here(path_models_passive, "posteriors.csv"))
+
+pp_perf_tibble |>
+  write_csv(here::here(path_models_passive, "pp_perf_tibble.csv"))
+
+contrasts |>
+  write_csv(here::here(path_models_passive, "contrasts.csv"))
 ```
